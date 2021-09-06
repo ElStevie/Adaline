@@ -11,7 +11,6 @@ class Perceptron:
         self.learning_rate = learning_rate
         self.vectors_size = vectors_size
         self.max_epochs = max_epochs
-        self.errors_count = []
         self.weights = []
 
     def init_weights(self):
