@@ -16,6 +16,7 @@ class Plotter:
     weights_initialized = False
     perceptron_fitted = False
     decision_boundary = None
+    perceptron_errors = None
     done = False
 
     def __init__(self):
@@ -97,7 +98,13 @@ class Plotter:
         plt.pause(MAIN_SUBPLOT_PAUSE_INTERVAL)
 
     def __plot_errors(self, count):
-        self.ax_errors.bar(self.current_epoch, count)
+        if not self.perceptron_errors:
+            self.perceptron_errors = [[], []]
+        else:
+            self.ax_errors.clear()
+        self.perceptron_errors[0].append(self.current_epoch)
+        self.perceptron_errors[1].append(count)
+        self.ax_errors.plot(self.perceptron_errors[0], self.perceptron_errors[1])
         plt.pause(ERRORS_SUBPLOT_PAUSE_INTERVAL)
 
     def __onclick(self, event):
