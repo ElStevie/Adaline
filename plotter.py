@@ -15,21 +15,21 @@ class Plotter:
     current_epoch_text = None
     weights_initialized = False
     perceptron_fitted = False
-    decision_boundary = None
+    perceptron_decision_boundary = None
     perceptron_errors = None
     done = False
 
     def __init__(self):
-        self.fig, (self.ax_main, self.ax_errors) = plt.subplots(1, 2)
+        self.fig, (self.ax_main, self.ax_perceptron_errors) = plt.subplots(SUBPLOT_ROWS, SUBPLOT_COLS)
         self.fig.set_size_inches(FIG_WIDTH, FIG_HEIGHT, forward=True)
         plt.subplots_adjust(bottom=0.3)
         self.ax_main.set_xlim(NORMALIZATION_RANGE)
         self.ax_main.set_ylim(NORMALIZATION_RANGE)
         self.fig.suptitle(FIG_SUPERIOR_TITLE)
         self.ax_main.set_title(MAIN_SUBPLOT_TITLE)
-        self.ax_errors.set_title(ERRORS_SUBPLOT_TITLE)
-        self.ax_errors.set_xlabel(ERRORS_SUBPLOT_XLABEL)
-        self.ax_errors.set_ylabel(ERRORS_SUBPLOT_YLABEL)
+        self.ax_perceptron_errors.set_title(ERRORS_SUBPLOT_TITLE)
+        self.ax_perceptron_errors.set_xlabel(ERRORS_SUBPLOT_XLABEL)
+        self.ax_perceptron_errors.set_ylabel(ERRORS_SUBPLOT_YLABEL)
 
         ax_text_box_learning_rate = plt.axes(TEXT_BOX_LEARNING_RATE_AXES)
         ax_text_box_max_epochs = plt.axes(TEXT_BOX_MAX_EPOCHS_AXES)
@@ -50,11 +50,14 @@ class Plotter:
         learning_rate_initialized = self.learning_rate != 0
         max_epochs_initialized = self.max_epochs != 0
         points_plotted = len(self.X) > 0
-        if learning_rate_initialized and max_epochs_initialized and points_plotted and not self.perceptron_fitted:
-            self.perceptron = Perceptron(self.learning_rate, self.max_epochs, NORMALIZATION_RANGE)
-            self.perceptron.init_weights()
-            self.weights_initialized = True
-            self.plot_decision_boundary()
+        if learning_rate_initialized and max_epochs_initialized and points_plotted:
+            if self.perceptron_fitted:
+                pass
+            else:
+                self.perceptron = Perceptron(self.learning_rate, self.max_epochs, NORMALIZATION_RANGE)
+                self.perceptron.init_weights()
+                self.weights_initialized = True
+                self.plot_decision_boundary(self.perceptron)
 
     def __fit_perceptron(self, event):
         if self.weights_initialized and not self.perceptron_fitted:
@@ -70,54 +73,61 @@ class Plotter:
                         self.done = False
                         self.perceptron.weights = \
                             self.perceptron.weights + np.multiply((self.perceptron.learning_rate * error), x)
-                        self.plot_decision_boundary()
-                self.__plot_errors(errors)
+                        self.plot_decision_boundary(self.perceptron)
+                self.__plot_perceptron_errors(errors)
             self.ax_main.text(PERCEPTRON_CONVERGENCE_TEXT_X_POS, PERCEPTRON_CONVERGENCE_TEXT_Y_POS,
-                              PERCEPTRON_CONVERGED_TEXT if self.done else PERCEPTRON_DIDNT_CONVERGE_TEXT,
+                              ALGORITHM_CONVERGED_TEXT if self.done else ALGORITHM_DIDNT_CONVERGE_TEXT,
                               fontsize=PERCEPTRON_CONVERGENCE_TEXT_FONT_SIZE)
             self.current_epoch_text.set_text(CURRENT_EPOCH_TEXT % self.current_epoch)
             plt.pause(MAIN_SUBPLOT_PAUSE_INTERVAL)
             self.perceptron_fitted = True
 
-    def plot_decision_boundary(self):
+    def plot_decision_boundary(self, perceptron):
         x1 = np.array([self.X[:, 0].min() - 2, self.X[:, 0].max() + 2])
-        m = -self.perceptron.weights[1] / self.perceptron.weights[2]
-        c = self.perceptron.weights[0] / self.perceptron.weights[2]
+        m = -perceptron.weights[1] / perceptron.weights[2]
+        c = perceptron.weights[0] / perceptron.weights[2]
         x2 = m * x1 + c
         # Plotting
-        if not self.decision_boundary:
-            self.decision_boundary, = self.ax_main.plot(x1, x2, DECISION_BOUNDARY_MARKER)
-            self.current_epoch_text = self.ax_main.text(CURRENT_EPOCH_TEXT_X_POS, CURRENT_EPOCH_TEXT_Y_POS,
-                                                        CURRENT_EPOCH_TEXT % self.current_epoch,
-                                                        fontsize=CURRENT_EPOCH_TEXT_FONT_SIZE)
+        if type(perceptron) == Perceptron:
+            if self.perceptron_decision_boundary:
+                self.perceptron_decision_boundary.set_xdata(x1)
+                self.perceptron_decision_boundary.set_ydata(x2)
+                self.current_epoch_text.set_text(CURRENT_EPOCH_TEXT % self.current_epoch)
+            else:
+                self.perceptron_decision_boundary, = self.ax_main.plot(x1, x2,
+                                                                       PERCEPTRON_DECISION_BOUNDARY_MARKER)
+                self.current_epoch_text = self.ax_main.text(CURRENT_EPOCH_TEXT_X_POS, CURRENT_EPOCH_TEXT_Y_POS,
+                                                            CURRENT_EPOCH_TEXT % self.current_epoch,
+                                                            fontsize=CURRENT_EPOCH_TEXT_FONT_SIZE)
         else:
-            self.decision_boundary.set_xdata(x1)
-            self.decision_boundary.set_ydata(x2)
-            self.current_epoch_text.set_text(CURRENT_EPOCH_TEXT % self.current_epoch)
+            pass
         self.fig.canvas.draw()
         plt.pause(MAIN_SUBPLOT_PAUSE_INTERVAL)
 
-    def __plot_errors(self, count):
+    def __plot_perceptron_errors(self, count):
         if not self.perceptron_errors:
             self.perceptron_errors = [[], []]
         else:
-            self.ax_errors.clear()
+            self.ax_perceptron_errors.clear()
         self.perceptron_errors[0].append(self.current_epoch)
         self.perceptron_errors[1].append(count)
-        self.ax_errors.plot(self.perceptron_errors[0], self.perceptron_errors[1])
+        self.ax_perceptron_errors.plot(self.perceptron_errors[0], self.perceptron_errors[1])
         plt.pause(ERRORS_SUBPLOT_PAUSE_INTERVAL)
 
     def __onclick(self, event):
         if event.inaxes == self.ax_main:
             current_point = [event.xdata, event.ydata]
+            is_left_click = event.button == 1
             if self.perceptron_fitted:
-                current_point = [-1] + current_point
-                self.ax_main.plot(event.xdata, event.ydata,
-                                  CLASS_1_MARKER_POST_FIT if self.perceptron.pw(current_point)
-                                  else CLASS_0_MARKER_POST_FIT)
+                if is_left_click:
+                    current_point = [-1] + current_point
+                    self.ax_main.plot(event.xdata, event.ydata,
+                                      CLASS_1_MARKER_POST_FIT if self.perceptron.pw(current_point)
+                                      else CLASS_0_MARKER_POST_FIT)
+                else:
+                    pass
             else:
                 self.X = np.append(self.X, current_point).reshape([len(self.X) + 1, 2])
-                is_left_click = event.button == 1
                 #  Left click = Class 0 - Right click = Class 1
                 self.Y.append(0 if is_left_click else 1)
                 self.ax_main.plot(event.xdata, event.ydata, CLASS_0_MARKER if is_left_click else CLASS_1_MARKER)
